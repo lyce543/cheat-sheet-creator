@@ -73,10 +73,13 @@ export default function ChatPage() {
       const { analysis } = await analysisResponse.json()
       setCurrentAnalysis(analysis)
 
+      // Extract topic list from analysis instead of showing full text
+      const topicsList = extractTopicsList(analysis)
+      
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: "assistant",
-        content: analysis,
+        content: `I've analyzed the job posting and identified key topics for your cheat sheet:\n\n${topicsList}`,
         timestamp: new Date(),
       }
 
@@ -101,7 +104,7 @@ export default function ChatPage() {
         id: (Date.now() + 2).toString(),
         type: "assistant",
         content:
-          "Perfect! I've generated your comprehensive cheat sheet. It includes detailed breakdowns of all the key skills, common interview questions, practical examples, and study resources. Click the download button below to get your PDF study guide.",
+          "Perfect! I've created your cheat sheet with optimized 2D layout covering: Executive Summary, Core Technical Skills, Key Concepts, Interview Questions, Code Examples, Quick Reference, Study Resources, and Last-Minute Review. Download your compact PDF study guide below.",
         timestamp: new Date(),
       }
 
@@ -119,6 +122,38 @@ export default function ChatPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Helper function to extract topics list from analysis
+  const extractTopicsList = (analysis: string): string => {
+    const lines = analysis.split('\n')
+    const topics = []
+    
+    for (const line of lines) {
+      const trimmed = line.trim()
+      // Extract main topics and technologies
+      if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+        const topic = trimmed.replace(/^[-•]\s*/, '').replace(/\*\*/g, '')
+        if (topic && !topic.includes(':') && topic.length < 50) {
+          topics.push(`• ${topic}`)
+        }
+      }
+      // Extract technologies from bullet points
+      if (trimmed.match(/^\s*-\s*\*\*[^:]+\*\*/)) {
+        const tech = trimmed.replace(/^\s*-\s*\*\*/, '').replace(/\*\*.*$/, '')
+        if (tech.length < 30) {
+          topics.push(`• ${tech}`)
+        }
+      }
+    }
+    
+    // If no topics found, create a generic list
+    if (topics.length === 0) {
+      return "• Technical Skills\n• Core Concepts\n• Interview Questions\n• Code Examples\n• Study Resources"
+    }
+    
+    // Return unique topics, limited to 15 items
+    return [...new Set(topics)].slice(0, 15).join('\n')
   }
 
   const handleDownloadPDF = async () => {
@@ -141,7 +176,7 @@ export default function ChatPage() {
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.href = url
-      link.download = "job-cheatsheet.pdf"
+      link.download = "interview-cheatsheet.pdf"
       link.click()
       window.URL.revokeObjectURL(url)
     } catch (error) {
@@ -264,9 +299,9 @@ export default function ChatPage() {
                 <Card className="bg-primary/5 border-primary/20 p-6 max-w-md">
                   <div className="text-center">
                     <FileText className="h-12 w-12 text-primary mx-auto mb-4" />
-                    <h3 className="font-semibold mb-2">Cheat Sheet Ready!</h3>
+                    <h3 className="font-semibold mb-2">Compact Cheat Sheet Ready!</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Your personalized study guide has been generated and is ready for download.
+                      Your space-optimized study guide uses 2D packing layout to fit maximum information on one page.
                     </p>
                     <Button onClick={handleDownloadPDF} className="bg-primary hover:bg-primary/90">
                       <Download className="h-4 w-4 mr-2" />
