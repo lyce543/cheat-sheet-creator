@@ -4,6 +4,15 @@ import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
+    // Перевірка наявності API ключа
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("OPENAI_API_KEY is not set in environment variables")
+      return NextResponse.json(
+        { error: "OpenAI API key is not configured. Please add OPENAI_API_KEY to your .env.local file." },
+        { status: 500 }
+      )
+    }
+
     const { analysis } = await request.json()
 
     if (!analysis) {
@@ -11,7 +20,9 @@ export async function POST(request: NextRequest) {
     }
 
     const { text } = await generateText({
-      model: openai("gpt-4o-mini"),
+      model: openai("gpt-4o-mini", {
+        apiKey: process.env.OPENAI_API_KEY,
+      }),
       prompt: `Based on this job analysis, create a comprehensive cheat sheet content that would be perfect for a PDF study guide. Include:
 
 1. **Executive Summary** - Brief overview of the role requirements
@@ -31,6 +42,23 @@ Format this as a well-structured document that would work well in a PDF format w
     return NextResponse.json({ cheatsheet: text })
   } catch (error) {
     console.error("Error generating cheat sheet:", error)
+    
+    // Більш детальна обробка помилок
+    if (error instanceof Error) {
+      if (error.message.includes('API key')) {
+        return NextResponse.json(
+          { error: "Invalid OpenAI API key. Please check your OPENAI_API_KEY in .env.local file." },
+          { status: 401 }
+        )
+      }
+      if (error.message.includes('quota') || error.message.includes('billing')) {
+        return NextResponse.json(
+          { error: "OpenAI API quota exceeded. Please check your billing and usage limits." },
+          { status: 429 }
+        )
+      }
+    }
+    
     return NextResponse.json({ error: "Failed to generate cheat sheet" }, { status: 500 })
   }
 }
