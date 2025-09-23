@@ -4,14 +4,6 @@ import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      console.error("OPENAI_API_KEY is not set in environment variables")
-      return NextResponse.json(
-        { error: "OpenAI API key is not configured. Please add OPENAI_API_KEY to your .env.local file." },
-        { status: 500 }
-      )
-    }
-
     const { jobDescription } = await request.json()
 
     if (!jobDescription) {
@@ -19,9 +11,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { text } = await generateText({
-      model: openai("gpt-4o-mini", {
-        apiKey: process.env.OPENAI_API_KEY,
-      }),
+      model: openai("gpt-4o-mini"),
       prompt: `Analyze this job posting and extract key information for creating a study cheat sheet. Focus on:
 
 1. Technical skills and technologies mentioned
@@ -39,22 +29,6 @@ Please provide a structured analysis that would help someone prepare for this ro
     return NextResponse.json({ analysis: text })
   } catch (error) {
     console.error("Error analyzing job posting:", error)
-    
-    if (error instanceof Error) {
-      if (error.message.includes('API key')) {
-        return NextResponse.json(
-          { error: "Invalid OpenAI API key. Please check your OPENAI_API_KEY in .env.local file." },
-          { status: 401 }
-        )
-      }
-      if (error.message.includes('quota') || error.message.includes('billing')) {
-        return NextResponse.json(
-          { error: "OpenAI API quota exceeded. Please check your billing and usage limits." },
-          { status: 429 }
-        )
-      }
-    }
-    
     return NextResponse.json({ error: "Failed to analyze job posting" }, { status: 500 })
   }
 }
