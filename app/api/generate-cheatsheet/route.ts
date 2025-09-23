@@ -1,3 +1,5 @@
+// File: app/api/generate-cheatsheet/route.ts
+
 import { generateText } from "ai"
 import { openai } from "@ai-sdk/openai"
 import { type NextRequest, NextResponse } from "next/server"
@@ -12,49 +14,59 @@ export async function POST(request: NextRequest) {
 
     const { text } = await generateText({
       model: openai("gpt-4o-mini"),
-      prompt: `Create a comprehensive interview cheat sheet based on this job analysis. IMPORTANT FORMATTING RULES:
-- Use **bold** ONLY for keywords/technologies, not entire sentences
-- Every section MUST have substantial content (minimum 5-8 detailed points)
-- Provide clear, detailed explanations that help with interview preparation
-- No empty sections or brief fragments allowed
+      prompt: `Create a comprehensive interview cheat sheet based on this job analysis. 
 
-Structure the cheat sheet with these sections:
+CRITICAL FORMATTING RULES:
+- Use **keyword** format ONLY for the main concept/technology name followed by a colon
+- The explanation should be in normal text, not bold
+- Each point should be a complete, flowing sentence without line breaks
+- No bullet points or dashes in explanations - use complete sentences
+- Example: **Python**: A high-level programming language known for its simplicity and readability, essential for data science and web development.
+
+Structure the cheat sheet with these sections (each must have 6-10 substantial entries):
 
 **CORE TECHNICAL SKILLS**
-List 8-12 key technologies with detailed explanations:
-- **Technology Name**: Detailed description of what it is, why it's important for this role, and how it's commonly used. Include version specifics if relevant.
+Provide 8-10 key technologies with detailed explanations:
+- **Technology**: Complete explanation in one flowing paragraph about what it is, why it's important, and how it's used.
 
 **KEY CONCEPTS & METHODOLOGIES** 
-6-10 important concepts with comprehensive explanations:
-- **Concept Name**: Full explanation of the methodology, when it's used, benefits, and how it relates to the role.
+Provide 6-8 important concepts:
+- **Concept**: Full explanation of the methodology, benefits, and practical applications.
 
 **COMMON INTERVIEW QUESTIONS**
-12-15 detailed questions with answer guidelines:
-- Question text with clear, structured answer points covering what interviewers want to hear.
+Provide 10-12 essential questions with structured answer guidelines:
+- Question followed by clear talking points about what to cover in your response.
 
 **CODE EXAMPLES & SNIPPETS**
-6-8 practical examples with context:
-- **Example Title**: Code snippet with explanation of purpose, common use cases, and key points to mention in interviews.
+Provide 6-8 practical examples:
+- **Example Name**: Brief code snippet followed by explanation of purpose and key points to mention.
 
 **STUDY RESOURCES & REFERENCES**
-Comprehensive learning materials organized by category:
-- **Books**: Specific titles with brief descriptions
-- **Documentation**: Official docs and key sections to focus on  
-- **Practice Platforms**: Coding platforms and specific areas to practice
-- **Courses**: Recommended online courses or tutorials
+Comprehensive learning materials:
+- **Books**: 3-4 specific titles with brief descriptions
+- **Documentation**: Key official docs to study  
+- **Practice**: Coding platforms and practice areas
+- **Courses**: Recommended online learning resources
 
 **QUICK REFERENCE GUIDE**
-Essential commands, syntax, and formulas organized by technology:
-- **Technology**: Most important commands/syntax with brief explanations
+Essential commands and syntax:
+- **Technology**: Most important commands/syntax with concise explanations
 
 **LAST-MINUTE REVIEW CHECKLIST**
-Critical points to remember before the interview:
-- Key talking points, common mistakes to avoid, and confidence boosters
+Critical points for final preparation:
+- Key confidence boosters and common pitfalls to avoid
+
+CONTENT REQUIREMENTS:
+- Every explanation must be 50-150 characters to ensure proper fitting
+- No fragmented sentences across lines
+- Use concise but complete explanations
+- Focus on practical interview relevance
+- Ensure every section has substantial, useful content
 
 Job Analysis:
 ${analysis}
 
-Make every point detailed and interview-focused. Ensure no section is empty and all content is substantial enough to be genuinely helpful for interview preparation.`,
+Generate dense, interview-focused content that fits well in a compact PDF layout.`,
     })
 
     return NextResponse.json({ cheatsheet: text })
