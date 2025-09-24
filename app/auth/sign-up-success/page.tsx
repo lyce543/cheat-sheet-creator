@@ -1,4 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import Link from "next/link"
 
 export default function SignUpSuccessPage() {
   return (
@@ -8,12 +9,29 @@ export default function SignUpSuccessPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl">Thank you for signing up!</CardTitle>
-              <CardDescription>Check your email to confirm</CardDescription>
+              <CardDescription>Check your email to confirm your account</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
-                You&apos;ve successfully signed up. Please check your email to confirm your account before signing in.
-              </p>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  You&apos;ve successfully signed up. Please check your email to confirm your account before signing in.
+                </p>
+                <div className="rounded-lg bg-muted p-3">
+                  <p className="text-sm">
+                    <strong>Next steps:</strong>
+                  </p>
+                  <ol className="mt-2 text-sm text-muted-foreground list-decimal list-inside space-y-1">
+                    <li>Check your email inbox (and spam folder)</li>
+                    <li>Click the confirmation link in the email</li>
+                    <li>You&apos;ll be redirected back to the app automatically</li>
+                  </ol>
+                </div>
+                <div className="text-center">
+                  <Link href="/auth/login" className="text-sm text-primary hover:underline">
+                    Already confirmed? Sign in here
+                  </Link>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
