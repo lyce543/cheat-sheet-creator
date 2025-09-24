@@ -2,8 +2,20 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowRight, Brain, FileText, Zap } from "lucide-react"
 import Link from "next/link"
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
+import { AuthHeader } from "@/components/auth-header"
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (user) {
+    redirect("/chat")
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -13,16 +25,7 @@ export default function LandingPage() {
             <Brain className="h-8 w-8 text-primary" />
             <span className="text-xl font-bold text-foreground">CheatSheet Creator</span>
           </div>
-          <div className="flex items-center space-x-4">
-            <Link href="/login">
-              <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
-                Sign In
-              </Button>
-            </Link>
-            <Link href="/register">
-              <Button className="bg-primary hover:bg-primary/90">Get Started</Button>
-            </Link>
-          </div>
+          <AuthHeader />
         </div>
       </header>
 
@@ -45,7 +48,7 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link href="/register">
+            <Link href="/auth/register">
               <Button size="lg" className="bg-primary hover:bg-primary/90 text-lg px-8 py-6">
                 Create Your First Cheat Sheet
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -112,7 +115,7 @@ export default function LandingPage() {
             <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
               Join thousands of job seekers who are using AI to prepare smarter, not harder.
             </p>
-            <Link href="/register">
+            <Link href="/auth/register">
               <Button size="lg" className="bg-primary hover:bg-primary/90 text-lg px-8 py-6">
                 Start Creating Cheat Sheets
                 <ArrowRight className="ml-2 h-5 w-5" />

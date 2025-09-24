@@ -1,14 +1,16 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Brain, Send, FileText, Download, User, Bot, LogOut, AlertCircle } from "lucide-react"
-import Link from "next/link"
+import { Brain, Send, FileText, Download, User, Bot, AlertCircle, History } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
+import type { User as SupabaseUser } from "@supabase/supabase-js"
+import { AuthHeader } from "@/components/auth-header"
 
 interface Message {
   id: string
@@ -17,7 +19,16 @@ interface Message {
   timestamp: Date
 }
 
+interface UserQuery {
+  id: string
+  job_description: string
+  topics: any
+  cheat_sheet_content: string | null
+  created_at: string
+}
+
 export default function ChatPage() {
+  const [user, setUser] = useState<SupabaseUser | null>(null)
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -31,7 +42,12 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [generatedCheatSheet, setGeneratedCheatSheet] = useState<string | null>(null)
   const [currentAnalysis, setCurrentAnalysis] = useState<string | null>(null)
+  const [currentQueryId, setCurrentQueryId] = useState<string | null>(null)
+  const [queryHistory, setQueryHistory] = useState<UserQuery[]>([])
+  const [showHistory, setShowHistory] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
+  const supabase = createClient()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -41,9 +57,96 @@ export default function ChatPage() {
     scrollToBottom()
   }, [messages])
 
+  useEffect(() => {
+    const checkUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        router.push("/auth/login")
+        return
+      }
+      setUser(user)
+      await loadQueryHistory(user.id)
+    }
+
+    checkUser()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session?.user) {
+        router.push("/auth/login")
+      } else {
+        setUser(session.user)
+        loadQueryHistory(session.user.id)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [supabase.auth, router])
+
+  const loadQueryHistory = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("user_queries")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(10)
+
+      if (error) throw error
+      setQueryHistory(data || [])
+    } catch (error) {
+      console.error("Error loading query history:", error)
+    }
+  }
+
+  const saveQueryToDatabase = async (jobDescription: string, topics: any, cheatSheetContent: string | null = null) => {
+    if (!user) return null
+
+    try {
+      const { data, error } = await supabase
+        .from("user_queries")
+        .insert({
+          user_id: user.id,
+          job_description: jobDescription,
+          topics: topics,
+          cheat_sheet_content: cheatSheetContent,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Reload history to show the new query
+      await loadQueryHistory(user.id)
+      return data.id
+    } catch (error) {
+      console.error("Error saving query:", error)
+      return null
+    }
+  }
+
+  const updateQueryWithCheatSheet = async (queryId: string, cheatSheetContent: string) => {
+    try {
+      const { error } = await supabase
+        .from("user_queries")
+        .update({ cheat_sheet_content: cheatSheetContent })
+        .eq("id", queryId)
+
+      if (error) throw error
+
+      // Reload history to show updated content
+      await loadQueryHistory(user!.id)
+    } catch (error) {
+      console.error("Error updating query with cheat sheet:", error)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim() || isLoading) return
+    if (!input.trim() || isLoading || !user) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -75,7 +178,10 @@ export default function ChatPage() {
 
       // Extract topic list from analysis instead of showing full text
       const topicsList = extractTopicsList(analysis)
-      
+
+      const queryId = await saveQueryToDatabase(jobDescription, { topics: topicsList })
+      setCurrentQueryId(queryId)
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: "assistant",
@@ -100,15 +206,9 @@ export default function ChatPage() {
       const { cheatsheet } = await cheatsheetResponse.json()
       setGeneratedCheatSheet(cheatsheet)
 
-      const cheatsheetMessage: Message = {
-        id: (Date.now() + 2).toString(),
-        type: "assistant",
-        content:
-          "Perfect! I've created your cheat sheet with optimized 2D layout covering: Executive Summary, Core Technical Skills, Key Concepts, Interview Questions, Code Examples, Quick Reference, Study Resources, and Last-Minute Review. Download your compact PDF study guide below.",
-        timestamp: new Date(),
+      if (queryId) {
+        await updateQueryWithCheatSheet(queryId, cheatsheet)
       }
-
-      setMessages((prev) => [...prev, cheatsheetMessage])
     } catch (error) {
       console.error("Error processing job description:", error)
       const errorMessage: Message = {
@@ -126,34 +226,34 @@ export default function ChatPage() {
 
   // Helper function to extract topics list from analysis
   const extractTopicsList = (analysis: string): string => {
-    const lines = analysis.split('\n')
+    const lines = analysis.split("\n")
     const topics = []
-    
+
     for (const line of lines) {
       const trimmed = line.trim()
       // Extract main topics and technologies
-      if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
-        const topic = trimmed.replace(/^[-•]\s*/, '').replace(/\*\*/g, '')
-        if (topic && !topic.includes(':') && topic.length < 50) {
+      if (trimmed.startsWith("- ") || trimmed.startsWith("• ")) {
+        const topic = trimmed.replace(/^[-•]\s*/, "").replace(/\*\*/g, "")
+        if (topic && !topic.includes(":") && topic.length < 50) {
           topics.push(`• ${topic}`)
         }
       }
       // Extract technologies from bullet points
       if (trimmed.match(/^\s*-\s*\*\*[^:]+\*\*/)) {
-        const tech = trimmed.replace(/^\s*-\s*\*\*/, '').replace(/\*\*.*$/, '')
+        const tech = trimmed.replace(/^\s*-\s*\*\*/, "").replace(/\*\*.*$/, "")
         if (tech.length < 30) {
           topics.push(`• ${tech}`)
         }
       }
     }
-    
+
     // If no topics found, create a generic list
     if (topics.length === 0) {
       return "• Technical Skills\n• Core Concepts\n• Interview Questions\n• Code Examples\n• Study Resources"
     }
-    
+
     // Return unique topics, limited to 15 items
-    return [...new Set(topics)].slice(0, 15).join('\n')
+    return [...new Set(topics)].slice(0, 15).join("\n")
   }
 
   const handleDownloadPDF = async () => {
@@ -191,6 +291,47 @@ export default function ChatPage() {
     }
   }
 
+  const loadPreviousQuery = (query: UserQuery) => {
+    setMessages([
+      {
+        id: "1",
+        type: "assistant",
+        content:
+          "Hi! I'm your AI assistant for creating cheat sheets. Paste a job description below, and I'll analyze it to create a personalized study guide with all the key skills and topics you need to master.",
+        timestamp: new Date(),
+      },
+      {
+        id: "2",
+        type: "user",
+        content: query.job_description,
+        timestamp: new Date(query.created_at),
+      },
+      {
+        id: "3",
+        type: "assistant",
+        content: `I've analyzed the job posting and identified key topics for your cheat sheet:\n\n${query.topics?.topics || "Loading topics..."}`,
+        timestamp: new Date(query.created_at),
+      },
+    ])
+
+    if (query.cheat_sheet_content) {
+      setGeneratedCheatSheet(query.cheat_sheet_content)
+    }
+
+    setShowHistory(false)
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Brain className="h-12 w-12 text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
@@ -204,19 +345,43 @@ export default function ChatPage() {
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-              <FileText className="h-4 w-4 mr-2" />
-              History
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => setShowHistory(!showHistory)}
+            >
+              <History className="h-4 w-4 mr-2" />
+              History ({queryHistory.length})
             </Button>
-            <Link href="/">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </Button>
-            </Link>
+            <AuthHeader />
           </div>
         </div>
       </header>
+
+      {showHistory && (
+        <div className="border-b border-border/40 bg-card/30 p-4">
+          <h3 className="font-semibold mb-3">Recent Queries</h3>
+          <div className="grid gap-2 max-h-40 overflow-y-auto">
+            {queryHistory.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No previous queries found.</p>
+            ) : (
+              queryHistory.map((query) => (
+                <Card
+                  key={query.id}
+                  className="p-3 cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => loadPreviousQuery(query)}
+                >
+                  <p className="text-sm font-medium truncate">{query.job_description.substring(0, 100)}...</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Date(query.created_at).toLocaleDateString()}
+                  </p>
+                </Card>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Chat Area */}
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full">
@@ -300,9 +465,6 @@ export default function ChatPage() {
                   <div className="text-center">
                     <FileText className="h-12 w-12 text-primary mx-auto mb-4" />
                     <h3 className="font-semibold mb-2">Compact Cheat Sheet Ready!</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Your space-optimized study guide uses 2D packing layout to fit maximum information on one page.
-                    </p>
                     <Button onClick={handleDownloadPDF} className="bg-primary hover:bg-primary/90">
                       <Download className="h-4 w-4 mr-2" />
                       Download PDF
