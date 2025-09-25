@@ -32,12 +32,17 @@ export default function RegisterPage() {
     }
 
     try {
+      // Визначаємо правильний URL для перенаправлення
+      const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+      const redirectUrl = isProduction 
+        ? `${window.location.origin}/auth/callback?next=/chat`
+        : `${window.location.origin}/auth/callback?next=/chat`
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo:
-            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth/callback?next=/chat`,
+          emailRedirectTo: redirectUrl,
         },
       })
       if (error) throw error
