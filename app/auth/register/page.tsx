@@ -32,11 +32,25 @@ export default function RegisterPage() {
     }
 
     try {
-      // Визначаємо правильний URL для перенаправлення
-      const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
-      const redirectUrl = isProduction 
-        ? `${window.location.origin}/auth/callback?next=/chat`
-        : `${window.location.origin}/auth/callback?next=/chat`
+      // Більш надійне визначення URL
+      let redirectUrl: string
+      
+      if (typeof window !== 'undefined') {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        
+        if (isLocal) {
+          redirectUrl = `${window.location.origin}/auth/callback?next=/chat`
+        } else {
+          // Для продакшн використовуємо або NEXT_PUBLIC_SITE_URL або поточний origin
+          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+          redirectUrl = `${siteUrl}/auth/callback?next=/chat`
+        }
+      } else {
+        // Server-side fallback (не повинно статися у цьому компоненті)
+        redirectUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback?next=/chat`
+      }
+
+      console.log("Sign up redirect URL:", redirectUrl)
 
       const { error } = await supabase.auth.signUp({
         email,
@@ -45,9 +59,12 @@ export default function RegisterPage() {
           emailRedirectTo: redirectUrl,
         },
       })
+      
       if (error) throw error
+      
       router.push("/auth/sign-up-success")
     } catch (error: unknown) {
+      console.error("Sign up error:", error)
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
       setIsLoading(false)
