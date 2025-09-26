@@ -46,10 +46,10 @@ export async function POST(request: NextRequest) {
     console.log(`PDF Dimensions: ${pageWidth}mm x ${pageHeight}mm`) // Debug info
     
     const margin = 8
-    const headerHeight = 20
+    const headerHeight = 22 // Збільшено з 20 до 22
     const footerHeight = 5
     const availableWidth = pageWidth - (2 * margin) // 281mm
-    const availableHeight = pageHeight - headerHeight - footerHeight - (2 * margin) // ~177mm
+    const availableHeight = pageHeight - headerHeight - footerHeight - (2 * margin) // ~175mm
 
     console.log(`Available area: ${availableWidth}mm x ${availableHeight}mm`) // Debug info
 
@@ -61,19 +61,19 @@ export async function POST(request: NextRequest) {
     // FIXED: Більш консервативний підхід до пакування
     const boxes = packSectionsWithSafeMargins(sections, availableWidth, availableHeight)
 
-    // Add professional header with safe margins
+    // Add professional header with safe margins - ЗБІЛЬШЕНО РОЗМІР
     doc.setFillColor(30, 60, 140)
     doc.rect(0, 0, pageWidth, headerHeight, "F")
     doc.setTextColor(255, 255, 255)
-    doc.setFontSize(16)
+    doc.setFontSize(18) // Збільшено з 16 до 18
     doc.setFont("helvetica", "bold")
-    doc.text("Interview Preparation Cheat Sheet", margin, headerHeight / 2 + 3)
+    doc.text("Interview Preparation Cheat Sheet", margin, headerHeight / 2 + 4) // Трохи змістили вниз
 
     // Add generation date
-    doc.setFontSize(8)
+    doc.setFontSize(9) // Збільшено з 8 до 9
     doc.setFont("helvetica", "normal")
     const date = new Date().toLocaleDateString('en-GB')
-    doc.text(`Generated: ${date}`, pageWidth - margin - 35, headerHeight / 2 + 3)
+    doc.text(`Generated: ${date}`, pageWidth - margin - 35, headerHeight / 2 + 4)
 
     // FIXED: Рендеринг з перевіркою меж
     renderSectionsWithBoundaryCheck(doc, boxes, margin, headerHeight + margin)
@@ -156,21 +156,25 @@ function cleanAndOptimizeSection(section: Section): Section {
 function getSectionPriority(title: string): number {
   const titleLower = title.toLowerCase()
   if (titleLower.includes('core') || titleLower.includes('technical')) return 10
-  if (titleLower.includes('interview') || titleLower.includes('questions')) return 9
-  if (titleLower.includes('concepts') || titleLower.includes('key')) return 8
-  if (titleLower.includes('code') || titleLower.includes('examples')) return 7
-  if (titleLower.includes('study') || titleLower.includes('resources')) return 6
-  if (titleLower.includes('reference') || titleLower.includes('quick')) return 5
-  return 4
+  if (titleLower.includes('code') || titleLower.includes('examples') || titleLower.includes('snippets')) return 9
+  if (titleLower.includes('interview') || titleLower.includes('questions')) return 8
+  if (titleLower.includes('concepts') || titleLower.includes('terminology') || titleLower.includes('definitions')) return 7
+  if (titleLower.includes('algorithms') || titleLower.includes('data structures')) return 6
+  if (titleLower.includes('system') || titleLower.includes('architecture')) return 5
+  if (titleLower.includes('reference') || titleLower.includes('quick') || titleLower.includes('commands')) return 4
+  if (titleLower.includes('study') || titleLower.includes('resources')) return 3
+  return 2
 }
 
 function getMinHeight(title: string): number {
   const titleLower = title.toLowerCase()
-  if (titleLower.includes('interview') || titleLower.includes('questions')) return 70
-  if (titleLower.includes('code') || titleLower.includes('examples')) return 65
-  if (titleLower.includes('core') || titleLower.includes('technical')) return 60
-  if (titleLower.includes('concepts') || titleLower.includes('key')) return 55
-  return 45
+  if (titleLower.includes('code') || titleLower.includes('examples') || titleLower.includes('snippets')) return 80
+  if (titleLower.includes('interview') || titleLower.includes('questions')) return 75
+  if (titleLower.includes('algorithms') || titleLower.includes('data structures')) return 70
+  if (titleLower.includes('core') || titleLower.includes('technical')) return 65
+  if (titleLower.includes('concepts') || titleLower.includes('terminology')) return 60
+  if (titleLower.includes('system') || titleLower.includes('architecture')) return 55
+  return 50
 }
 
 // FIXED: Безпечне пакування з перевіркою меж
@@ -192,7 +196,7 @@ function packSectionsWithSafeMargins(sections: Section[], containerWidth: number
     // FIXED: Більш точний розрахунок висоти
     const contentChars = section.content.join(' ').length
     const estimatedLines = Math.max(2, Math.ceil(contentChars / 55)) // 55 chars per line
-    const calculatedHeight = Math.max(section.minHeight, estimatedLines * 3.5 + 20) // 3.5mm per line + header
+    const calculatedHeight = Math.max(section.minHeight, estimatedLines * 3.5 + 25) // 3.5mm per line + header (збільшено з 20 до 25)
     
     // Find shortest column
     const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights))
@@ -201,10 +205,10 @@ function packSectionsWithSafeMargins(sections: Section[], containerWidth: number
     
     // FIXED: Переконуємося, що контент поміститься
     const availableHeight = maxColumnHeight - y
-    const finalHeight = Math.min(calculatedHeight, Math.max(35, availableHeight - 5))
+    const finalHeight = Math.min(calculatedHeight, Math.max(40, availableHeight - 5)) // Збільшено з 35 до 40
     
     // Skip if no space left
-    if (finalHeight < 35) {
+    if (finalHeight < 40) { // Збільшено з 35 до 40
       console.log(`Skipping section "${section.title}" - no space left`)
       continue
     }
@@ -258,10 +262,29 @@ function parseTextWithKeywordFormatting(text: string): TextSegment[] {
   if (currentIndex < text.length) {
     const remainingText = text.slice(currentIndex).trim()
     if (remainingText) {
+      // Розширене визначення коду - шукаємо блоки коду та технічні патерни
+      const isCodeBlock = remainingText.includes('```') || 
+                         remainingText.includes('```python') || 
+                         remainingText.includes('```javascript') ||
+                         remainingText.includes('```sql') ||
+                         remainingText.includes('```bash') ||
+                         remainingText.includes('```java') ||
+                         remainingText.match(/^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(/) ||
+                         remainingText.match(/^[a-zA-Z_][a-zA-Z0-9_.]*\s*=/) ||
+                         remainingText.match(/^(import|from|def|class|function|const|let|var|SELECT|CREATE|INSERT|UPDATE|docker|git)\s/) ||
+                         remainingText.includes('->') || remainingText.includes('=>') ||
+                         remainingText.match(/[{}();[\]]/g)?.length > 2 ||
+                         remainingText.includes('app = Flask') ||
+                         remainingText.includes('.route(') ||
+                         remainingText.includes('pd.read_csv') ||
+                         remainingText.includes('conn.cursor()') ||
+                         remainingText.includes('git clone') ||
+                         remainingText.includes('docker run')
+      
       segments.push({
         text: remainingText,
         isBold: false,
-        isCode: remainingText.includes('```') || remainingText.match(/^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(/)
+        isCode: isCodeBlock
       })
     }
   }
@@ -294,19 +317,20 @@ function renderSectionsWithBoundaryCheck(doc: jsPDF, boxes: Box[], offsetX: numb
     doc.setLineWidth(0.3)
     doc.roundedRect(actualX, actualY, width, height, 2, 2, 'S')
     
-    // Add section title background
+    // Add section title background - ЗБІЛЬШЕНО ВИСОТУ
+    const titleHeight = 14 // Збільшено з 12 до 14
     doc.setFillColor(220, 230, 250)
-    doc.roundedRect(actualX, actualY, width, 12, 2, 2, 'F')
+    doc.roundedRect(actualX, actualY, width, titleHeight, 2, 2, 'F')
     
-    // Section title
+    // Section title - ЗБІЛЬШЕНО ШРИФТ
     doc.setTextColor(20, 40, 120)
-    doc.setFontSize(9)
+    doc.setFontSize(10) // Збільшено з 9 до 10
     doc.setFont("helvetica", "bold")
     const titleText = doc.splitTextToSize(section.title, width - 4)[0]
-    doc.text(titleText, actualX + 2, actualY + 8)
+    doc.text(titleText, actualX + 2, actualY + 9) // Трохи змістили вниз
     
     // Section content with strict boundary checking
-    let contentY = actualY + 16
+    let contentY = actualY + titleHeight + 4 // Збільшено відступ з 16 до 18 (14+4)
     const contentWidth = width - 4
     const maxContentY = actualY + height - 5
     const lineHeight = 3.3
@@ -323,15 +347,15 @@ function renderSectionsWithBoundaryCheck(doc: jsPDF, boxes: Box[], offsetX: numb
         // Set font
         if (segment.isCode) {
           doc.setFont("courier", "normal")
-          doc.setFontSize(6.5)
-          doc.setTextColor(0, 120, 0)
+          doc.setFontSize(6.8) // Трохи менший для коду
+          doc.setTextColor(0, 80, 0) // Темніший зелений для кращої читаемості
         } else if (segment.isBold) {
           doc.setFont("helvetica", "bold")
-          doc.setFontSize(7.5)
+          doc.setFontSize(8) // Збільшено з 7.5 до 8
           doc.setTextColor(40, 40, 40)
         } else {
           doc.setFont("helvetica", "normal")
-          doc.setFontSize(7)
+          doc.setFontSize(7.5) // Збільшено з 7 до 7.5
           doc.setTextColor(60, 60, 60)
         }
         
@@ -366,9 +390,9 @@ function renderSectionsWithBoundaryCheck(doc: jsPDF, boxes: Box[], offsetX: numb
       
       contentY += lineHeight + 0.8
       
-      // Extra space for bullet points
-      if (line.match(/^[-•]\s/) || line.match(/^\d+\./)) {
-        contentY += 1.5
+      // Extra space for bullet points and code blocks
+      if (line.match(/^[-•]\s/) || line.match(/^\d+\./) || line.includes('```')) {
+        contentY += 2 // Збільшено з 1.5 до 2
       }
     }
   }
