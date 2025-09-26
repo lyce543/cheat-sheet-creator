@@ -155,26 +155,26 @@ function cleanAndOptimizeSection(section: Section): Section {
 
 function getSectionPriority(title: string): number {
   const titleLower = title.toLowerCase()
-  if (titleLower.includes('core') || titleLower.includes('technical')) return 10
-  if (titleLower.includes('code') || titleLower.includes('examples') || titleLower.includes('snippets')) return 9
-  if (titleLower.includes('interview') || titleLower.includes('questions')) return 8
-  if (titleLower.includes('concepts') || titleLower.includes('terminology') || titleLower.includes('definitions')) return 7
-  if (titleLower.includes('algorithms') || titleLower.includes('data structures')) return 6
-  if (titleLower.includes('system') || titleLower.includes('architecture')) return 5
-  if (titleLower.includes('reference') || titleLower.includes('quick') || titleLower.includes('commands')) return 4
-  if (titleLower.includes('study') || titleLower.includes('resources')) return 3
+  if (titleLower.includes('core') || titleLower.includes('technical') || titleLower.includes('основні') || titleLower.includes('навички')) return 10
+  if (titleLower.includes('code') || titleLower.includes('examples') || titleLower.includes('патерни') || titleLower.includes('приклади')) return 9
+  if (titleLower.includes('interview') || titleLower.includes('questions') || titleLower.includes('співбесід') || titleLower.includes('завдання')) return 8
+  if (titleLower.includes('concepts') || titleLower.includes('terminology') || titleLower.includes('definitions') || titleLower.includes('визначення')) return 7
+  if (titleLower.includes('algorithms') || titleLower.includes('data structures') || titleLower.includes('алгоритм') || titleLower.includes('структур')) return 6
+  if (titleLower.includes('system') || titleLower.includes('architecture') || titleLower.includes('фреймворк')) return 5
+  if (titleLower.includes('reference') || titleLower.includes('quick') || titleLower.includes('commands') || titleLower.includes('довідник')) return 4
+  if (titleLower.includes('study') || titleLower.includes('resources') || titleLower.includes('тестування') || titleLower.includes('дебагінг')) return 3
   return 2
 }
 
 function getMinHeight(title: string): number {
   const titleLower = title.toLowerCase()
-  if (titleLower.includes('code') || titleLower.includes('examples') || titleLower.includes('snippets')) return 80
-  if (titleLower.includes('interview') || titleLower.includes('questions')) return 75
-  if (titleLower.includes('algorithms') || titleLower.includes('data structures')) return 70
-  if (titleLower.includes('core') || titleLower.includes('technical')) return 65
-  if (titleLower.includes('concepts') || titleLower.includes('terminology')) return 60
-  if (titleLower.includes('system') || titleLower.includes('architecture')) return 55
-  return 50
+  if (titleLower.includes('code') || titleLower.includes('examples') || titleLower.includes('патерни') || titleLower.includes('приклади')) return 85
+  if (titleLower.includes('interview') || titleLower.includes('questions') || titleLower.includes('співбесід') || titleLower.includes('завдання')) return 80
+  if (titleLower.includes('algorithms') || titleLower.includes('data structures') || titleLower.includes('алгоритм')) return 75
+  if (titleLower.includes('core') || titleLower.includes('technical') || titleLower.includes('основні') || titleLower.includes('навички')) return 70
+  if (titleLower.includes('concepts') || titleLower.includes('terminology') || titleLower.includes('визначення')) return 65
+  if (titleLower.includes('system') || titleLower.includes('architecture') || titleLower.includes('фреймворк')) return 60
+  return 55
 }
 
 // FIXED: Безпечне пакування з перевіркою меж
@@ -195,8 +195,8 @@ function packSectionsWithSafeMargins(sections: Section[], containerWidth: number
   for (const section of sortedSections) {
     // FIXED: Більш точний розрахунок висоти
     const contentChars = section.content.join(' ').length
-    const estimatedLines = Math.max(2, Math.ceil(contentChars / 55)) // 55 chars per line
-    const calculatedHeight = Math.max(section.minHeight, estimatedLines * 3.5 + 25) // 3.5mm per line + header (збільшено з 20 до 25)
+    const estimatedLines = Math.max(2, Math.ceil(contentChars / 50)) // 50 chars per line
+    const calculatedHeight = Math.max(section.minHeight, estimatedLines * 3.5 + 25) // 3.5mm per line + header
     
     // Find shortest column
     const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights))
@@ -205,10 +205,10 @@ function packSectionsWithSafeMargins(sections: Section[], containerWidth: number
     
     // FIXED: Переконуємося, що контент поміститься
     const availableHeight = maxColumnHeight - y
-    const finalHeight = Math.min(calculatedHeight, Math.max(40, availableHeight - 5)) // Збільшено з 35 до 40
+    const finalHeight = Math.min(calculatedHeight, Math.max(40, availableHeight - 5))
     
     // Skip if no space left
-    if (finalHeight < 40) { // Збільшено з 35 до 40
+    if (finalHeight < 40) {
       console.log(`Skipping section "${section.title}" - no space left`)
       continue
     }
@@ -233,8 +233,10 @@ function parseTextWithKeywordFormatting(text: string): TextSegment[] {
   const segments: TextSegment[] = []
   text = text.replace(/\s+/g, ' ').trim()
   
-  // Find **keyword**: patterns
+  // Find **keyword**: patterns and bullet points
   const keywordPattern = /\*\*([^*]+?)\*\*\s*:?/g
+  const bulletPattern = /^\s*[\*\-\•]\s*/
+  
   let currentIndex = 0
   let match
   
@@ -243,7 +245,17 @@ function parseTextWithKeywordFormatting(text: string): TextSegment[] {
     if (match.index > currentIndex) {
       const beforeText = text.slice(currentIndex, match.index).trim()
       if (beforeText) {
-        segments.push({ text: beforeText, isBold: false, isCode: false })
+        // Check if it's a bullet point
+        const isBulletPoint = bulletPattern.test(beforeText)
+        const cleanText = beforeText.replace(bulletPattern, '').trim()
+        
+        if (cleanText) {
+          segments.push({ 
+            text: isBulletPoint ? `• ${cleanText}` : cleanText, 
+            isBold: false, 
+            isCode: false 
+          })
+        }
       }
     }
     
@@ -262,35 +274,48 @@ function parseTextWithKeywordFormatting(text: string): TextSegment[] {
   if (currentIndex < text.length) {
     const remainingText = text.slice(currentIndex).trim()
     if (remainingText) {
-      // Розширене визначення коду - шукаємо блоки коду та технічні патерни
-      const isCodeBlock = remainingText.includes('```') || 
-                         remainingText.includes('```python') || 
-                         remainingText.includes('```javascript') ||
-                         remainingText.includes('```sql') ||
-                         remainingText.includes('```bash') ||
-                         remainingText.includes('```java') ||
-                         remainingText.match(/^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(/) ||
-                         remainingText.match(/^[a-zA-Z_][a-zA-Z0-9_.]*\s*=/) ||
-                         remainingText.match(/^(import|from|def|class|function|const|let|var|SELECT|CREATE|INSERT|UPDATE|docker|git)\s/) ||
-                         remainingText.includes('->') || remainingText.includes('=>') ||
-                         remainingText.match(/[{}();[\]]/g)?.length > 2 ||
-                         remainingText.includes('app = Flask') ||
-                         remainingText.includes('.route(') ||
-                         remainingText.includes('pd.read_csv') ||
-                         remainingText.includes('conn.cursor()') ||
-                         remainingText.includes('git clone') ||
-                         remainingText.includes('docker run')
+      // Check if it's a bullet point
+      const isBulletPoint = bulletPattern.test(remainingText)
+      const cleanText = remainingText.replace(bulletPattern, '').trim()
       
-      segments.push({
-        text: remainingText,
-        isBold: false,
-        isCode: isCodeBlock
-      })
+      // Enhanced code detection - look for code blocks and technical patterns
+      const isCodeBlock = cleanText.includes('```') || 
+                         cleanText.includes('```python') || 
+                         cleanText.includes('```javascript') ||
+                         cleanText.includes('```sql') ||
+                         cleanText.includes('```bash') ||
+                         cleanText.includes('```java') ||
+                         cleanText.match(/^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(/) ||
+                         cleanText.match(/^[a-zA-Z_][a-zA-Z0-9_.]*\s*=/) ||
+                         cleanText.match(/^(import|from|def|class|function|const|let|var|SELECT|CREATE|INSERT|UPDATE|docker|git)\s/) ||
+                         cleanText.includes('->') || cleanText.includes('=>') ||
+                         (cleanText.match(/[{}();[\]]/g)?.length || 0) > 2 ||
+                         cleanText.includes('app = Flask') ||
+                         cleanText.includes('.route(') ||
+                         cleanText.includes('pd.read_csv') ||
+                         cleanText.includes('conn.cursor()') ||
+                         cleanText.includes('git clone') ||
+                         cleanText.includes('docker run')
+      
+      if (cleanText) {
+        segments.push({
+          text: isBulletPoint ? `• ${cleanText}` : cleanText,
+          isBold: false,
+          isCode: isCodeBlock
+        })
+      }
     }
   }
   
   if (segments.length === 0) {
-    segments.push({ text: text.replace(/\*\*/g, ''), isBold: false, isCode: false })
+    const cleanedText = text.replace(/\*\*/g, '').replace(bulletPattern, '').trim()
+    const isBulletPoint = bulletPattern.test(text)
+    
+    segments.push({ 
+      text: isBulletPoint ? `• ${cleanedText}` : cleanedText, 
+      isBold: false, 
+      isCode: false 
+    })
   }
   
   return segments
@@ -348,7 +373,7 @@ function renderSectionsWithBoundaryCheck(doc: jsPDF, boxes: Box[], offsetX: numb
         if (segment.isCode) {
           doc.setFont("courier", "normal")
           doc.setFontSize(6.8) // Трохи менший для коду
-          doc.setTextColor(0, 80, 0) // Темніший зелений для кращої читаемості
+          doc.setTextColor(0, 80, 0) // Темніший зелений для кращої читаємості
         } else if (segment.isBold) {
           doc.setFont("helvetica", "bold")
           doc.setFontSize(8) // Збільшено з 7.5 до 8
